@@ -50,7 +50,7 @@ async function main() {
     );
 
     const verifierSetCairoVerifierContractTx = verifierContract.populate("set_cairo_verifier_contract", [
-      "0x0799065888b54a1164e07f7832d1d356dc9a6b2bc1527aee13b8c55ec5418cf3",
+      "0x02d587d824050c8d608a6fb0288306eac35dbee23b9d36fe42ea9f1c3fb17320",
     ]);
     const feeEstimate = await account.estimateFee([verifierSetCairoVerifierContractTx]);
 

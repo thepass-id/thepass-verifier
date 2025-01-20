@@ -129,13 +129,11 @@ You will need to get some `ETH` or `STRK` Sepolia tokens to deploy your contract
 yarn deploy --network sepolia
 ```
 
-5. On a second terminal, start your NextJS app:
+6. Verify example proof using Verifier contract
 
 ```bash
-yarn start
+./verify-the-pass-on-starknet.sh 0x396146527066e7cb7cfd580af01fb44d79ead5800d6a75468bdbc1d9d0c7f1e examples/calldata event_4
 ```
-
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page.
 
 ### RPC specific version
 

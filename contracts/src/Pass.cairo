@@ -2,11 +2,53 @@ use starknet::{ContractAddress};
 
 #[starknet::interface]
 pub trait IPass<TContractState> {
+    /// Mints a new token with the given `account_id` and `x` value.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the contract state.
+    /// - `account_id`: The address of the account to mint the token for.
+    /// - `x`: A `felt252` value associated with the token.
+    ///
+    /// # Returns
+    /// Returns the `u256` token ID of the newly minted token.
     fn mint(ref self: TContractState, account_id: ContractAddress, x: felt252) -> u256;
+
+    /// Retrieves the list of token IDs owned by the given `account_id`.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the contract state.
+    /// - `account_id`: The address of the account to retrieve tokens for.
+    ///
+    /// # Returns
+    /// Returns an array of `u256` token IDs owned by the specified account.
     fn get_tokens_of_owner(ref self: TContractState, account_id: ContractAddress) -> Array<u256>;
-    // ERC721 overrides
+
+    /// Retrieves the name of the token collection.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the contract state.
+    ///
+    /// # Returns
+    /// Returns a `ByteArray` containing the name of the token collection.
     fn name(self: @TContractState) -> ByteArray;
+
+    /// Retrieves the symbol of the token collection.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the contract state.
+    ///
+    /// # Returns
+    /// Returns a `ByteArray` containing the symbol of the token collection.
     fn symbol(self: @TContractState) -> ByteArray;
+
+    /// Retrieves the URI for the specified token ID.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the contract state.
+    /// - `token_id`: The `u256` ID of the token to retrieve the URI for.
+    ///
+    /// # Returns
+    /// Returns a `ByteArray` containing the URI of the specified token.
     fn token_uri(self: @TContractState, token_id: u256) -> ByteArray;
 }
 
@@ -110,19 +152,21 @@ pub mod Pass {
         fn mint(ref self: ContractState, account_id: ContractAddress, x: felt252) -> u256 {
             self.ownable.assert_only_owner();
 
+            // Ensure the pass is not already minted.
             assert(
                 self.account_owned_passes.entry(account_id).entry(x).read() == false,
                 Errors::PASS_ALREADY_MINTED
             );
 
+            // Mint the pass and update the storage.
             let new_token_id = self.last_token_id.read() + 1;
             self.last_token_id.write(new_token_id);
             self.erc721.mint(account_id, new_token_id);
 
-            let pass_attributes = PassAttributes { account_id, x, };
-
+            let pass_attributes = PassAttributes { account_id, x };
             self.passes.entry(new_token_id).write(pass_attributes);
             self.account_owned_passes.entry(account_id).entry(x).write(true);
+
             self.emit(PassMinted { account_id, x });
 
             new_token_id
@@ -130,18 +174,17 @@ pub mod Pass {
 
         fn get_tokens_of_owner(ref self: ContractState, account_id: ContractAddress) -> Array<u256> {
             let balance = self.erc721.balance_of(account_id);
-
             let mut tokens_of_owner = array![];
 
             if balance.is_zero() {
                 return tokens_of_owner;
             }
 
-            for i in 0
-                ..balance {
-                    let token_id = self.erc721_enumerable.token_of_owner_by_index(account_id, i);
-                    tokens_of_owner.append(token_id);
-                };
+            // Retrieve all tokens owned by the account.
+            for i in 0..balance {
+                let token_id = self.erc721_enumerable.token_of_owner_by_index(account_id, i);
+                tokens_of_owner.append(token_id);
+            };
 
             tokens_of_owner
         }

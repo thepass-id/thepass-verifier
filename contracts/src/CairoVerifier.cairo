@@ -17,6 +17,14 @@ pub struct ProofVerified {
 
 #[starknet::interface]
 pub trait ICairoVerifier<TContractState> {
+    /// Verifies a full proof using the provided verifier settings and serialized proof.
+    ///
+    /// Parameters:
+    /// - `settings`: Configuration for the verifier.
+    /// - `stark_proof_serde`: The proof in serialized form to be verified.
+    ///
+    /// Returns:
+    /// - A `ProofVerified` event with the verification details.
     fn verify_proof_full(
         ref self: TContractState,
         settings: VerifierSettings,
@@ -28,20 +36,16 @@ pub trait ICairoVerifier<TContractState> {
 pub mod CairoVerifier {
     use starknet::{
         ContractAddress,
-        storage::{StoragePointerReadAccess, StoragePointerWriteAccess, Map},//, StoragePathEntry, Map},
+        storage::{StoragePointerReadAccess, StoragePointerWriteAccess, Map},
     };
     use integrity::{
-        PublicInputImpl, StarkProofWithSerde,//MemoryVerification, PublicInputImpl, StarkProofWithSerde,
+        PublicInputImpl, StarkProofWithSerde,
         stark::{StarkProof, StarkProofImpl},
-        fri::fri::{
-            //FriLayerWitness, //FriVerificationStateConstant, //FriVerificationStateVariable,
-            //hash_constant, //hash_variable
-        },
         settings::{VerifierSettings, JobId, FactHash, SecurityBits},
     };
     use core::hash::HashStateTrait;
-    use core::poseidon::PoseidonTrait; // HashStateImpl
-    use super::{ProofVerified, ICairoVerifier};//, InitResult, ICairoVerifier};
+    use core::poseidon::PoseidonTrait;
+    use super::{ProofVerified, ICairoVerifier};
 
     #[storage]
     struct Storage {
@@ -77,16 +81,22 @@ pub mod CairoVerifier {
             settings: VerifierSettings,
             stark_proof_serde: StarkProofWithSerde,
         ) -> ProofVerified {
+            // Deserialize the proof from its serialized form.
             let stark_proof: StarkProof = stark_proof_serde.into();
+
+            // Perform public input verification based on memory verification mode.
             let (program_hash, output_hash) = match settings.memory_verification {
-                0 => stark_proof.public_input.verify_strict(),
-                1 => stark_proof.public_input.verify_relaxed(),
-                2 => stark_proof.public_input.verify_cairo1(),
+                0 => stark_proof.public_input.verify_strict(), // Strict verification.
+                1 => stark_proof.public_input.verify_relaxed(), // Relaxed verification.
+                2 => stark_proof.public_input.verify_cairo1(), // Cairo1 verification.
                 _ => {
+                    // Handle invalid memory_verification value.
                     assert(false, 'invalid memory_verification');
                     (0, 0)
                 }
             };
+
+            // Verify the proof with the provided settings and contracts.
             let security_bits = stark_proof
                 .verify(
                     self.composition_contract_address.read(),
@@ -94,10 +104,13 @@ pub mod CairoVerifier {
                     @settings
                 );
 
+            // Compute the fact hash using Poseidon hashing of the program and output hashes.
             let fact = PoseidonTrait::new().update(program_hash).update(output_hash).finalize();
 
+            // Create a `ProofVerified` event with the verification results.
             let event = ProofVerified { job_id: 0, fact, security_bits, settings };
             self.emit(event);
+
             event
         }
     }
